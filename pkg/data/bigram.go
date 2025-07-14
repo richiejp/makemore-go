@@ -81,7 +81,7 @@ func Names() ([][]uint16, []Bigram) {
 		return a.count - b.count
 	})
 
-	for i, p := range pairs {
+	for i := range pairs {
 		if i == 25 {
 			fmt.Printf("...\n")
 			continue
@@ -89,7 +89,7 @@ func Names() ([][]uint16, []Bigram) {
 			continue
 		} 
 
-		fmt.Printf("%s => %d\n", p.pair, p.count)
+		// fmt.Printf("%s => %d\n", p.pair, p.count)
 	}
 
 	os.Getwd()
