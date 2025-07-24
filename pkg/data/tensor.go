@@ -4,6 +4,7 @@ import (
 	"github.com/gomlx/gomlx/backends"
 	_ "github.com/gomlx/gomlx/backends/simplego"
 	. "github.com/gomlx/gomlx/graph"
+	"github.com/gomlx/gomlx/types/shapes"
 	"github.com/gomlx/gomlx/types/tensors"
 )
 
@@ -28,10 +29,25 @@ func ToProbabilities(backend backends.Backend, counts [][]uint16) *tensors.Tenso
 		//cs = ConvertDType(cs, dtypes.F16)
 		
 		sums := ReduceAndKeep(cs, ReduceSum, 1)
+		probs := Div(cs, sums)
 
-		return Div(cs, sums)
+		return CumSum(probs, 1)
 	})
 
 	return e.Call(cst)[0]
 } 
 
+func SampleTensor(b backends.Backend, ps *tensors.Tensor, seed int64) *tensors.Tensor {
+	e := NewExec(b, func(ps *Node) *Node {
+		
+		rngState := Const(ps.Graph(), RngStateFromSeed(seed))
+		rngState, rns := RandomUniform(rngState, shapes.Make(ps.DType(), 1))
+
+		rns = BroadcastToShape(rns, ps.Shape())
+		bools := Sign(Sub(ps, rns))
+
+		return ArgMax(bools, 1)
+	})
+
+	return e.Call(ps)[0]
+}
