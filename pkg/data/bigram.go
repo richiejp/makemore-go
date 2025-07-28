@@ -21,38 +21,42 @@ func (b Bigram) Count() int {
 }
 
 const (
-	startToken = 26
-	endToken   = 27
+	StartToken = 26
+	EndToken   = 27
 )
 
 func CharIndxToString(i int) string {
 	switch i {
-	case startToken:
+	case StartToken:
 		return "<S>"
-	case endToken:
+	case EndToken:
 	 	return "<E>"
 	default:
 		return string(byte(i) + 'a')
 	}
 }
 
-func Names() ([][]uint16, []Bigram) {
+func NamesScanner() (*os.File, *bufio.Scanner) {
 	f, err := os.Open("./names.txt")
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
 
+	return f, bufio.NewScanner(f)
+}
+
+func Names() ([][]uint16, []Bigram) {
 	counter := make([][]uint16, 28)
 	for i := range counter {
 		counter[i] = make([]uint16, 28)
 	}
 
-	scanner := bufio.NewScanner(f)
+	f, scanner := NamesScanner()
+	defer f.Close()
 	for scanner.Scan() {
 		name := scanner.Bytes()
 
-		counter[startToken][name[0] - 'a'] += 1
+		counter[StartToken][name[0] - 'a'] += 1
 
 		for i, b := range name[:len(name)-1] {
 			ch1 := b - 'a'
@@ -61,7 +65,7 @@ func Names() ([][]uint16, []Bigram) {
 			counter[ch1][ch2] += 1
 		}
 
-		counter[name[len(name)-1] - 'a'][endToken] += 1
+		counter[name[len(name)-1] - 'a'][EndToken] += 1
 	}
 
 	var pairs []Bigram
