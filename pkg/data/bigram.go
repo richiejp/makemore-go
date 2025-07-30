@@ -8,16 +8,13 @@ import (
 )
 
 type Bigram struct {
-	pair string
-	count int
+	Ch1   int
+	Ch2   int
+	Count int
 }
 
-func (b Bigram) Pair() string {
-	return b.pair
-}
-
-func (b Bigram) Count() int {
-	return b.count
+func (b Bigram) String() string {
+	return fmt.Sprintf("%v%v", CharIndxToString(b.Ch1), CharIndxToString(b.Ch2))
 }
 
 const (
@@ -30,7 +27,7 @@ func CharIndxToString(i int) string {
 	case StartToken:
 		return "<S>"
 	case EndToken:
-	 	return "<E>"
+		return "<E>"
 	default:
 		return string(byte(i) + 'a')
 	}
@@ -45,28 +42,45 @@ func NamesScanner() (*os.File, *bufio.Scanner) {
 	return f, bufio.NewScanner(f)
 }
 
-func Names() ([][]uint16, []Bigram) {
+func BigramVisitor(fn func(ch1, ch2 int) bool) {
+	f, s := NamesScanner()
+	defer f.Close()
+
+	for s.Scan() {
+		name := s.Bytes()
+
+		ch1 := int(StartToken)
+		ch2 := int(name[0] - 'a')
+		for j := range len(name) + 1 {
+			if !fn(ch1, ch2) {
+				return
+			}
+
+			ch1 = ch2
+			if j+1 < len(name) {
+				ch2 = int(name[j+1] - 'a')
+			} else {
+				ch2 = EndToken
+			}
+		}
+	}
+}
+
+func Names(smoothing int) ([][]uint16, []Bigram) {
 	counter := make([][]uint16, 28)
 	for i := range counter {
 		counter[i] = make([]uint16, 28)
-	}
 
-	f, scanner := NamesScanner()
-	defer f.Close()
-	for scanner.Scan() {
-		name := scanner.Bytes()
-
-		counter[StartToken][name[0] - 'a'] += 1
-
-		for i, b := range name[:len(name)-1] {
-			ch1 := b - 'a'
-			ch2 := name[i+1] - 'a'
-
-			counter[ch1][ch2] += 1
+		for j := range counter[i] {
+			counter[i][j] = uint16(smoothing)
 		}
-
-		counter[name[len(name)-1] - 'a'][EndToken] += 1
 	}
+
+	BigramVisitor(func(ch1, ch2 int) bool {
+		counter[ch1][ch2] += 1
+
+		return true
+	})
 
 	var pairs []Bigram
 	for i, ps := range counter {
@@ -75,23 +89,24 @@ func Names() ([][]uint16, []Bigram) {
 				continue
 			}
 			pairs = append(pairs, Bigram{
-				pair: CharIndxToString(i) + CharIndxToString(j),
-				count: int(count),
+				Ch1:   i,
+				Ch2:   j,
+				Count: int(count),
 			})
 		}
 	}
 
 	slices.SortFunc(pairs, func(a Bigram, b Bigram) int {
-		return a.count - b.count
+		return a.Count - b.Count
 	})
 
 	for i := range pairs {
 		if i == 25 {
 			fmt.Printf("...\n")
 			continue
-		} else if i > 25 && i < len(pairs) - 25 {
+		} else if i > 25 && i < len(pairs)-25 {
 			continue
-		} 
+		}
 
 		// fmt.Printf("%s => %d\n", p.pair, p.count)
 	}
